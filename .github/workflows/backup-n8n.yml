@@ -17,7 +17,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Verify n8n environment credentials
+        id: n8n
+        env:
+          N8N_URL: ${{ vars.N8N_URL }}
+          N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
+        run: |
+          if [ -z "${N8N_URL}" ] || [ -z "${N8N_API_KEY}" ]; then
+            echo "N8N_URL and N8N_API_KEY must both be set in the job environment — skipping backup."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Backup workflows
+        if: steps.n8n.outputs.ready == 'true'
         env:
           N8N_URL: ${{ vars.N8N_URL }}
           N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
@@ -51,6 +65,7 @@ jobs:
           echo "Backed up $(ls workflows/*.json 2>/dev/null | wc -l | tr -d ' ') workflows"
 
       - name: Backup credentials
+        if: steps.n8n.outputs.ready == 'true'
         env:
           N8N_URL: ${{ vars.N8N_URL }}
           N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
@@ -82,6 +97,7 @@ jobs:
           echo "Backed up $(ls credentials/*.json 2>/dev/null | wc -l | tr -d ' ') credentials"
 
       - name: Commit and push changes
+        if: steps.n8n.outputs.ready == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
